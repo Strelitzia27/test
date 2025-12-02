@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2025贝壳r追兴年度报告</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <style>
+        /* ==================== 全局变量 ==================== */
+        :root {
+            --lay-purple: #7B00FF;
+            --lay-gold: #FFD700;
+            --bg-color: #120520;
+            --text-white: #ffffff;
+            --shell-gradient: linear-gradient(135deg, #e6e6fa 0%, #d8bfd8 40%, #9370db 100%);
+            --pearl-color: radial-gradient(circle at 30% 30%, #fff 0%, #f0f0f0 60%, #e6e6fa 100%);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            overscroll-behavior: none; 
+        }
+
+        /* --- 右上角全局音乐开关 --- */
+        .global-music-btn {
+            position: fixed; top: 20px; right: 20px; width: 36px; height: 36px;
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; z-index: 1000; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; cursor: pointer; backdrop-filter: blur(5px);
+            box-shadow: 0 0 10px rgba(123, 0, 255, 0.5); transition: all 0.3s;
+        }
+        .global-music-btn.rotating {
+            animation: spin 4s linear infinite; background: rgba(123, 0, 255, 0.4);
+            border-color: var(--lay-gold); box-shadow: 0 0 15px rgba(123, 0, 255, 0.8);
+        }
+        .global-music-btn.paused { opacity: 0.5; animation: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 背景装饰 */
+        .bg-decoration {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+            background: radial-gradient(circle at 10% 20%, rgba(123, 0, 255, 0.2) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(255, 215, 0, 0.1) 0%, transparent 40%);
+            pointer-events: none;
+        }
+        .star {
+            position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+        /* 页面结构 */
+        .page-container { width: 100%; height: 100%; position: relative; z-index: 1; }
+        .page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 30px; text-align: center; opacity: 0;
+            transform: translateY(100%); transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            visibility: hidden; background: var(--bg-color);
+        }
+        .page.active { opacity: 1; transform: translateY(0); visibility: visible; }
+        .page.prev { transform: translateY(-100%); opacity: 0; visibility: hidden; }
+
+        /* --- 贝壳样式 --- */
+        .shell-wrapper { position: relative; width: 260px; height: 260px; perspective: 1000px; margin-bottom: 40px; }
+        .shell-top {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--shell-gradient);
+            clip-path: path("M10,130 C10,60 60,10 130,10 C200,10 250,60 250,130 C250,200 200,230 130,230 C60,230 10,200 10,130 Z");
+            background-image: repeating-linear-gradient(90deg, transparent 0, transparent 20px, rgba(255,255,255,0.2) 21px, transparent 22px),
+                            radial-gradient(circle at 50% 0%, rgba(255,255,255,0.8), transparent 70%);
+            transform-origin: 50% 80%; transition: transform 2.5s ease-in-out; transform: rotateX(0deg);
+            z-index: 2; box-shadow: inset 0 -10px 30px rgba(75, 0, 130, 0.5);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .shell-top::after {
+            content: ''; position: absolute; top: 10%; left: 50%; transform: translateX(-50%); width: 80%; height: 80%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%); filter: blur(5px); border-radius: 50%;
+        }
+        .shell-bottom {
+            position: absolute; top: 20px; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #b19cd9 0%, #7b68ee 100%);
+            clip-path: path("M10,130 C10,60 60,10 130,10 C200,10 250,60 250,130 C250,200 200,230 130,230 C60,230 10,200 10,130 Z");
+            z-index: 1; filter: brightness(0.7);
+        }
+        .pearl {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            width: 80px; height: 80px; background: var(--pearl-color); border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), inset -5px -5px 15px rgba(0,0,0,0.1);
+            z-index: 1; opacity: 0; transition: all 1.5s ease 1s;
+        }
+        .page.active .shell-top { transform: rotateX(60deg) translateY(-40px); }
+        .page.active .pearl { transform: translate(-50%, -60%) scale(1); opacity: 1; box-shadow: 0 0 40px var(--lay-gold); }
+
+        /* --- 通用组件 --- */
+        h1 { font-size: 26px; margin-bottom: 15px; font-weight: 700; background: linear-gradient(to right, #fff, #e0e0e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 10px rgba(123, 0, 255, 0.3); }
+        h2 { font-size: 20px; color: var(--lay-gold); margin-bottom: 25px; font-weight: 400; letter-spacing: 2px; }
+        .date-tag { display: inline-block; padding: 5px 15px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 14px; color: #ccc; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.2); }
+        p { font-size: 16px; line-height: 1.8; color: rgba(255, 255, 255, 0.9); margin-bottom: 10px; max-width: 300px; }
+        .highlight { color: var(--lay-gold); font-weight: bold; font-size: 1.2em; }
+        
+        .swipe-indicator {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 30px; height: 30px; border-bottom: 2px solid rgba(255,255,255,0.5); border-right: 2px solid rgba(255,255,255,0.5);
+            transform: translateX(-50%) rotate(45deg); animation: arrow-anim 1.5s infinite; z-index: 10;
+        }
+        @keyframes arrow-anim { 0% { opacity: 0; transform: translateX(-50%) rotate(45deg) translate(-5px, -5px); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) rotate(45deg) translate(5px, 5px); } }
+
+        .photo-gallery { display: flex; gap: 12px; overflow-x: auto; padding: 10px 20px; width: 100%; max-width: 360px; margin-top: 20px; justify-content: center; scrollbar-width: none; z-index: 5; }
+        .photo-item { display: flex; flex-direction: column; align-items: center; width: 110px; flex-shrink: 0; }
+        .event-photo { width: 110px; height: 150px; border-radius: 8px; object-fit: cover; border: 2px solid rgba(255,215,0,0.3); background-color: rgba(255,255,255,0.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: all 0.3s ease; }
+        .event-photo.climax { border-color: var(--lay-gold); box-shadow: 0 0 15px rgba(255, 215, 0, 0.7); transform: scale(1.05); }
+        .photo-caption { font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 8px; text-align: center; }
+
+        .fade-in-up { opacity: 0; transform: translateY(30px); transition: all 0.8s ease; }
+        .page.active .fade-in-up { opacity: 1; transform: translateY(0); }
+        .delay-1 { transition-delay: 0.2s; }
+        .delay-2 { transition-delay: 0.4s; }
+        .delay-3 { transition-delay: 0.6s; }
+        .delay-4 { transition-delay: 0.8s; }
+
+        /* --- 电影海报 --- */
+        .movie-poster-box { width: 200px; height: 280px; border: 4px solid #fff; border-bottom: 20px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transform: rotate(-3deg); overflow: hidden; margin: 20px auto; }
+        .movie-poster-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- 歌词页图片样式 --- */
+        .album-cover-box { width: 140px; height: 140px; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.2); margin-bottom: 15px; }
+        .album-cover-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- 歌词滑动页样式 --- */
+        .lyrics-mask { width: 300px; height: 200px; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%); }
+        .lyrics-wrapper { position: absolute; width: 100%; top: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; animation: lyricsScroll 12s linear infinite; }
+        .lyric-line { font-size: 14px; color: rgba(255,255,255,0.6); text-align: center; width: 100%; }
+        .lyric-line.focus { color: var(--lay-gold); font-size: 16px; font-weight: bold; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        @keyframes lyricsScroll { 0% { transform: translateY(0); } 100% { transform: translateY(-160%); } }
+
+        /* --- 日历样式 --- */
+        .calendar-view { width: 330px; height: 50vh; max-height: 400px; margin: 20px auto; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.5); display: grid; grid-template-rows: auto 1fr; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+        .calendar-months { display: flex; flex-direction: column; gap: 15px; padding-top: 5px; }
+        .month-header { font-size: 18px; color: var(--lay-gold); text-align: left; margin-bottom: 5px; font-weight: bold; }
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); font-size: 10px; color: #ccc; text-align: center; padding-bottom: 5px; }
+        .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-size: 12px; }
+        .day-cell { height: 30px; display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.5); position: relative; }
+        .day-cell.current-month { color: var(--text-white); }
+        .highlight-day { background: var(--lay-purple); color: var(--text-white) !important; border-radius: 50%; width: 25px; height: 25px; box-shadow: 0 0 8px rgba(123, 0, 255, 0.8); cursor: pointer; transition: transform 0.2s; }
+        .highlight-day:active { transform: scale(1.2); }
+        
+        /* 新增：日历点击后的底部提示横幅 */
+        #calendar-toast {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(123, 0, 255, 0.9); border: 1px solid var(--lay-gold);
+            color: #fff; padding: 8px 20px; border-radius: 30px; font-size: 14px;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            z-index: 20; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap;
+        }
+        #calendar-toast.show { opacity: 1; }
+
+        /* --- 地图样式 (升级版) --- */
+        .map-container { width: 320px; height: 320px; position: relative; margin: 20px auto; }
+        /* 抽象地图轮廓 SVG */
+        .map-bg-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 1;
+            pointer-events: none; z-index: 0;
+        }
+        /* 恢复金色圆点 */
+        .map-dot { position: absolute; width: 8px; height: 8px; background-color: var(--lay-gold); border-radius: 50%; box-shadow: 0 0 8px var(--lay-gold); transform: translate(-50%, -50%); z-index: 2; }
+        .map-dot::after { content: attr(data-city); position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #fff; white-space: nowrap; opacity: 0.8; }
+        
+        /* 坐标微调以匹配大致地图形状 */
+        .dot-bj { top: 25%; left: 48%; } 
+        .dot-nj { top: 45%; left: 55%; } 
+        .dot-sh { top: 50%; left: 60%; } 
+        .dot-sz { top: 70%; left: 48%; } 
+        .dot-hk { top: 74%; left: 50%; } 
+        .dot-hk-island { top: 82%; left: 40%; } 
+        .dot-seoul { top: 25%; left: 75%; }
+        
+        .map-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        /* 航线：北京->南京->上海->深圳->海口->香港->首尔 */
+        .flight-path { 
+            fill: none; stroke: rgba(123, 0, 255, 0.4); stroke-width: 1.5; 
+            stroke-dasharray: 1000; stroke-dashoffset: 1000;
+        }
+        .page.active .flight-path { animation: dash 6s linear forwards 0.5s; }
+        @keyframes dash { to { stroke-dashoffset: 0; } }
+
+        /* 小飞机图标 */
+        .plane-icon {
+            position: absolute;
+            top:0; left:0;
+            font-size: 16px;
+            color: #B685FF;
+            z-index: 3;
+            /* 使用 offset-path 让飞机沿着 path 飞 */
+            offset-path: path("M 153 80 L 176 144 L 192 160 L 153 224 L 128 262 L 160 236 L 240 80");
+            offset-rotate: auto 45deg; /* 修正飞机头朝向 */
+            animation: flyPlane 6s linear infinite;
+        }
+        @keyframes flyPlane {
+            0% { offset-distance: 0%; }
+            100% { offset-distance: 100%; }
+        }
+
+        /* --- 词云页面样式 --- */
+        .word-cloud-container {
+            width: 300px; height: 300px;
+            position: relative; transform-style: preserve-3d;
+            perspective: 500px; margin: 20px auto;
+        }
+        .word-tag {
+            position: absolute; top: 50%; left: 50%;
+            transform-style: preserve-3d;
+            font-size: 14px; color: rgba(255,255,255,0.8);
+            white-space: nowrap;
+            animation: floatWord 6s ease-in-out infinite alternate;
+        }
+        /* 简单的随机浮动动画 */
+        @keyframes floatWord {
+            0% { transform: translate(-50%, -50%) translateZ(-50px) scale(0.8); opacity: 0.5; }
+            100% { transform: translate(-50%, -50%) translateZ(50px) scale(1.2); opacity: 1; }
+        }
+        /* 不同词汇的颜色和大小 */
+        .w-large { font-size: 24px; color: var(--lay-gold); font-weight: bold; text-shadow: 0 0 10px var(--lay-gold); }
+        .w-medium { font-size: 18px; color: var(--lay-purple); font-weight: bold; }
+        .w-small { font-size: 12px; color: #ccc; }
+
+        /* --- 黑胶唱片样式 --- */
+        .vinyl-box { width: 220px; height: 220px; margin: 30px auto; position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .vinyl-disk { width: 100%; height: 100%; border-radius: 50%; background: #111; border: 2px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); animation: rotate 8s linear infinite; animation-play-state: paused; display: flex; align-items: center; justify-content: center; }
+        .vinyl-cover { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #fff; background-size: cover; background-position: center; background-image: url('https://placehold.co/100x100/7B00FF/fff?text=LAY'); }
+        .vinyl-needle { position: absolute; top: -10px; right: 10px; width: 4px; height: 80px; background: #ccc; transform-origin: top; transform: rotate(-30deg); transition: 0.5s; }
+        .playing .vinyl-disk { animation-play-state: running; }
+        .playing .vinyl-needle { transform: rotate(0deg); }
+        @keyframes rotate { to { transform: rotate(360deg); } }
+
+        /* --- 作者信息栏样式 --- */
+        .author-section {
+            margin-top: 20px; padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05); border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 85%; max-width: 300px; backdrop-filter: blur(5px);
+        }
+        .author-title {
+            font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.4); margin-bottom: 8px; text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;
+        }
+        .social-icons { display: flex; justify-content: space-around; font-size: 12px; color: #ddd; }
+        .social-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .social-item span:first-child { font-size: 10px; color: var(--lay-gold); opacity: 0.8; margin-bottom: 2px; }
+        .social-item span:last-child { font-size: 11px; font-family: sans-serif; }
+
+    </style>
+</head>
+<body>
+
+    <!-- 音频配置 -->
+    <audio id="global-bgm" src="张艺兴 - 一直都在.mp3" loop></audio>
+    <audio id="vinyl-bgm" src="张艺兴 - Would U Be Mine.mp3" loop></audio>
+
+    <!-- 右上角手动音乐开关 -->
+    <div id="music-toggle" class="global-music-btn">🎵</div>
+
+    <div class="bg-decoration" id="star-container"></div>
+
+    <div class="page-container" id="pageContainer">
+        
+        <!-- Page 0: 封面 -->
+        <div class="page active" data-index="0">
+            <div class="shell-wrapper">
+                <div class="shell-bottom"></div>
+                <div class="pearl"></div>
+                <div class="shell-top"></div>
+            </div>
+            <h1 class="fade-in-up delay-2">2025年度追兴总结</h1>
+            <p class="fade-in-up delay-3">from Strelitzia</p>
+            <p class="fade-in-up delay-4" style="font-size:12px; opacity:0.7; margin-top:20px;">上滑开启你的紫色星海</p>
+            <div class="swipe-indicator"></div>
+        </div>
+
+        <!-- Page 1: 入坑 -->
+        <div class="page" data-index="1">
+            <div class="icon-shell fade-in-up">🎬</div>
+            <h2 class="fade-in-up delay-1">故事的开始</h2>
+            <div class="date-tag fade-in-up delay-2">2025年 4月</div>
+            <div class="movie-poster-box fade-in-up delay-3">
+                <img src="img/MovieCover_mumu.jpg" alt="电影剧照">
+            </div>
+            <p class="fade-in-up delay-4">初见小马。</p>
+            <div class="swipe-indicator"></div>
+        </div>
+
+        <!-- Page 2: 入坑曲 -->
+        <div class="page" data-index="2">
+            <h2 class="fade-in-up">入坑曲</h2>
+            <p class="fade-in-up delay-1" style="font-size:12px; opacity:0.8;">🎶 当心脏开始共振，世界只余你我。</p>
+            <div class="album-cover-box fade-in-up delay-2">
+                <img src="img/PsychicCover.jpeg" alt="专辑封面">
+            </div>
+            <div class="lyrics-mask fade-in-up delay-3">
+                <div class="lyrics-wrapper">
+                    <div class="lyric-line">I feel you watching me roll</div>
+                    <div class="lyric-line">You want those X's and O's</div>
+                    <div class="lyric-line">High on the thought of us both</div>
+                    <div class="lyric-line">While you throw that thing like a lucky seven</div>
+                    <div class="lyric-line focus">I can take you high make you feel like heaven</div>
+                    <div class="lyric-line">Baby let me know</div>
+                    <div class="lyric-line">If you see you and me</div>
+                    <div class="lyric-line focus">K-I-S-S-I-N-G</div>
+                    <div class="lyric-line focus">You might be psychic</div>
+                    <div class="lyric-line focus">You might be psychic</div>
+                </div>
+            </div>
+            <div class="swipe-indicator"></div>
+        </div>
+
+
+        <!-- Page 4: 戏剧 -->
+        <div class="page" data-index="4">
+            <h2 class="fade-in-up">受到召唤 · 敦煌</h2>
+            <div class="date-tag fade-in-up delay-1">6月 · 南京</div>
+            <div class="photo-gallery fade-in-up delay-2">
+                <div class="photo-item">
+                    <img src="img/250607.jpg" class="event-photo">
+                    <span class="photo-caption"></span>
+                </div>
+            </div>
+            <p class="fade-in-up delay-3" style="margin-top:20px">第一次近距离感受<br>演员张艺兴。</p>
+            <div class="swipe-indicator"></div>
+        </div>
+        
+        <!-- Page 6: 南京 -->
+        <div class="page" data-index="6">
+            <h2 class="fade-in-up">九月·南京站</h2>
+            <div class="date-tag fade-in-up delay-1">9月</div>
+            <div class="photo-gallery fade-in-up delay-2">
+                <div class="photo-item">
+                    <img src="img/2509061.jpg" class="event-photo" alt="小羊蹄和荧光棒">
+                    <span class="photo-caption">小羊蹄和荧光棒</span>
+                </div>
+                <div class="photo-item">
+                    <img src="img/2509062.jpg" class="event-photo" alt="staring at the sun">
+                    <span class="photo-caption">staring at the sun</span>
+                </div>
+                <div class="photo-item">
+                    <img src="img/2509064.jpg" class="event-photo" alt="合照">
+                    <span class="photo-caption">合照</span>
+                </div>
+            </div>
+            <p class="fade-in-up delay-3" style="margin-top:15px">第一次的演唱会现场！</p>
+            <div class="swipe-indicator"></div>
+        </div>
+        
+        <!-- Page 7: 鸟巢 -->
+        <div class="page" data-index="7">
+            <div class="icon-shell fade-in-up">🎂</div>
+            <h2 class="fade-in-up delay-1" style="font-size:24px;">五巡大航海 · 终章</h2>
+            <div class="date-tag fade-in-up delay-2">10月6日 鸟巢中秋场</div>
+            <div class="date-tag fade-in-up delay-3">10月7日 鸟巢生日场</div>
+            <div class="photo-gallery fade-in-up delay-4">
+                <div class="photo-item">
+                    <img src="img/2510071.jpg" class="event-photo climax">
+                    <span class="photo-caption">那天是你生日<br>有我的生日</span>
+                </div>
+            </div>
+            <p class="fade-in-up delay-5" style="margin-top:10px">航行还未抵达终点<br>属于我们的故事也还在连载。</p>
+            <div class="swipe-indicator"></div>
+        </div>
+
+        <!-- Page 8: 日历 -->
+        <div class="page" data-index="8">
+            <div class="icon-shell fade-in-up">📅</div>
+            <h2 class="fade-in-up delay-1">2025 追兴日历</h2>
+            <div class="calendar-view fade-in-up delay-2 scrollable-content">
+                <div class="calendar-months">
+                    <!-- 4月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">四月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell"></span><span class="day-cell"></span>     
+                            <span class="day-cell current-month">1</span><span class="day-cell current-month">2</span><span class="day-cell current-month">3</span>
+                            <span class="day-cell current-month">4</span><span class="day-cell highlight-day" data-event="电影：不说话的爱">5</span><span class="day-cell current-month">6</span><span class="day-cell current-month">7</span><span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span>
+                            <span class="day-cell current-month">11</span><span class="day-cell current-month">12</span><span class="day-cell current-month">13</span><span class="day-cell current-month">14</span><span class="day-cell current-month">15</span><span class="day-cell current-month">16</span><span class="day-cell current-month">17</span>
+                            <span class="day-cell current-month">18</span><span class="day-cell current-month">19</span><span class="day-cell current-month">20</span><span class="day-cell current-month">21</span><span class="day-cell current-month">22</span><span class="day-cell current-month">23</span><span class="day-cell current-month">24</span>
+                            <span class="day-cell current-month">25</span><span class="day-cell current-month">26</span><span class="day-cell current-month">27</span><span class="day-cell current-month">28</span><span class="day-cell current-month">29</span>
+                            <span class="day-cell current-month">30</span>
+                        </div>
+                    </div>
+                    <!-- 5月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">五月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell"></span><span class="day-cell"></span><span class="day-cell"></span><span class="day-cell"></span>
+                            <span class="day-cell current-month">1</span><span class="day-cell current-month">2</span><span class="day-cell current-month">3</span>
+                            <span class="day-cell current-month">4</span><span class="day-cell current-month">5</span><span class="day-cell current-month">6</span><span class="day-cell current-month">7</span><span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span>
+                            <span class="day-cell current-month">11</span><span class="day-cell current-month">12</span><span class="day-cell current-month">13</span><span class="day-cell current-month">14</span><span class="day-cell current-month">15</span><span class="day-cell current-month">16</span><span class="day-cell current-month">17</span>
+                            <span class="day-cell current-month">18</span><span class="day-cell current-month">19</span><span class="day-cell current-month">20</span><span class="day-cell current-month">21</span><span class="day-cell current-month">22</span><span class="day-cell current-month">23</span><span class="day-cell current-month">24</span>
+                            <span class="day-cell current-month">25</span><span class="day-cell current-month">26</span><span class="day-cell current-month">27</span><span class="day-cell current-month">28</span><span class="day-cell current-month">29</span>
+                            <span class="day-cell current-month">30</span>
+                            <span class="day-cell current-month">31</span>
+                        </div>
+                    </div>
+                    <!-- 6月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">六月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell current-month">1</span>
+                            <span class="day-cell current-month">2</span><span class="day-cell current-month">3</span><span class="day-cell current-month">4</span><span class="day-cell current-month">5</span><span class="day-cell current-month">6</span>
+                            <span class="day-cell highlight-day" data-event="南京: 受到召唤敦煌话剧">7</span>
+                            <span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span><span class="day-cell current-month">11</span><span class="day-cell current-month">12</span><span class="day-cell current-month">13</span><span class="day-cell current-month">14</span>
+                            <span class="day-cell current-month">15</span><span class="day-cell current-month">16</span><span class="day-cell current-month">17</span><span class="day-cell current-month">18</span><span class="day-cell current-month">19</span><span class="day-cell current-month">20</span><span class="day-cell current-month">21</span>
+                            <span class="day-cell current-month">22</span><span class="day-cell current-month">23</span><span class="day-cell current-month">24</span><span class="day-cell current-month">25</span><span class="day-cell current-month">26</span><span class="day-cell current-month">27</span><span class="day-cell current-month">28</span>
+                            <span class="day-cell current-month">29</span><span class="day-cell current-month">30</span>
+                        </div>
+                    </div>
+                    <!-- 8月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">八月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span>
+                            <span class="day-cell current-month">1</span>
+                            <span class="day-cell current-month">2</span>
+                            <span class="day-cell current-month">3</span>
+                            <span class="day-cell current-month">4</span><span class="day-cell current-month">5</span><span class="day-cell current-month">6</span><span class="day-cell current-month">7</span><span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span>
+                            <span class="day-cell current-month">11</span><span class="day-cell current-month">12</span><span class="day-cell current-month">13</span><span class="day-cell current-month">14</span><span class="day-cell current-month">15</span>
+                            <span class="day-cell current-month">16</span>
+                            <span class="day-cell current-month">17</span><span class="day-cell current-month">18</span><span class="day-cell current-month">19</span><span class="day-cell current-month">20</span><span class="day-cell current-month">21</span><span class="day-cell current-month">22</span><span class="day-cell current-month">23</span>
+                            <span class="day-cell current-month">24</span><span class="day-cell current-month">25</span><span class="day-cell current-month">26</span><span class="day-cell current-month">27</span><span class="day-cell current-month">28</span><span class="day-cell current-month">29</span>
+                            <span class="day-cell current-month">30</span>
+                            <span class="day-cell current-month">31</span>
+                        </div>
+                    </div>
+                    <!-- 9月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">九月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell current-month"></span><span class="day-cell current-month">1</span><span class="day-cell current-month">2</span><span class="day-cell current-month">3</span><span class="day-cell current-month">4</span><span class="day-cell current-month">5</span><span class="day-cell highlight-day" data-event="南京: 大航海演唱会">6</span>
+                            <span class="day-cell current-month">7</span><span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span><span class="day-cell current-month">11</span><span class="day-cell current-month">12</span>
+                            <span class="day-cell current-month">13</span><span class="day-cell current-month">14</span>
+                            <span class="day-cell current-month">15</span><span class="day-cell current-month">16</span><span class="day-cell current-month">17</span><span class="day-cell current-month">18</span><span class="day-cell current-month">19</span><span class="day-cell current-month">20</span><span class="day-cell current-month">21</span>
+                            <span class="day-cell current-month">22</span><span class="day-cell current-month">23</span><span class="day-cell current-month">24</span><span class="day-cell current-month">25</span><span class="day-cell current-month">26</span><span class="day-cell current-month">27</span><span class="day-cell current-month">28</span>
+                            <span class="day-cell current-month">29</span><span class="day-cell current-month">30</span>
+                        </div>
+                    </div>
+                    <!-- 10月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">十月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span>
+                            <span class="day-cell current-month">1</span><span class="day-cell current-month">2</span><span class="day-cell current-month">3</span><span class="day-cell current-month">4</span>
+                            <span class="day-cell current-month">5</span><span class="day-cell highlight-day" data-event="北京: 鸟巢演唱会中秋场">6</span>
+                            <span class="day-cell highlight-day" data-event="北京: 鸟巢演唱会生日场">7</span>
+                            <span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span><span class="day-cell current-month">11</span>
+                            <span class="day-cell current-month">12</span><span class="day-cell current-month">13</span><span class="day-cell current-month">14</span><span class="day-cell current-month">15</span><span class="day-cell current-month">16</span><span class="day-cell current-month">17</span><span class="day-cell current-month">18</span>
+                            <span class="day-cell current-month">19</span><span class="day-cell current-month">20</span><span class="day-cell current-month">21</span><span class="day-cell current-month">22</span><span class="day-cell current-month">23</span><span class="day-cell current-month">24</span><span class="day-cell current-month">25</span>
+                            <span class="day-cell current-month">26</span><span class="day-cell current-month">27</span><span class="day-cell current-month">28</span><span class="day-cell current-month">29</span><span class="day-cell current-month">30</span><span class="day-cell current-month">31</span>
+                        </div>
+                    </div>
+                    <!-- 11月 -->
+                    <div class="month-wrapper">
+                        <div class="month-header">十一月</div>
+                        <div class="weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                        <div class="day-grid">
+                            <span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month"></span><span class="day-cell current-month">1</span><span class="day-cell current-month">2</span><span class="day-cell current-month">3</span><span class="day-cell current-month">4</span><span class="day-cell current-month">5</span><span class="day-cell current-month">6</span>
+                            <span class="day-cell current-month">7</span><span class="day-cell current-month">8</span><span class="day-cell current-month">9</span><span class="day-cell current-month">10</span><span class="day-cell current-month">11</span><span class="day-cell current-month">12</span><span class="day-cell current-month">13</span>
+                            <span class="day-cell current-month">14</span>
+                            <span class="day-cell current-month">15</span>
+                            <span class="day-cell current-month">16</span><span class="day-cell current-month">17</span><span class="day-cell current-month">18</span><span class="day-cell current-month">19</span><span class="day-cell current-month">20</span>
+                            <span class="day-cell current-month">21</span><span class="day-cell current-month">22</span><span class="day-cell current-month">23</span><span class="day-cell highlight-day" data-event="小家见面会（直播版）">24</span><span class="day-cell current-month">25</span><span class="day-cell current-month">26</span><span class="day-cell current-month">27</span>
+                            <span class="day-cell current-month">28</span><span class="day-cell current-month">29</span><span class="day-cell current-month">30</span>
+                            <span class="day-cell current-month">31</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 底部横幅提示框 -->
+            <div id="calendar-toast">点击日期查看行程</div>
+            <div class="swipe-indicator"></div>
+        </div>
+
+
+
+        <!-- 🌟 Page 11: 3D 词云 (新增页面) 🌟 -->
+        <div class="page" data-index="11">
+            <h2 class="fade-in-up">年度关键词</h2>
+            <p class="fade-in-up delay-1" style="font-size:12px; opacity:0.7;">我的追星 DNA</p>
+            
+            <div class="word-cloud-container fade-in-up delay-2">
+                <div class="word-tag w-large" style="animation-delay:0s;">老公</div>
+                <div class="word-tag w-large" style="animation-delay:-1s; top:30%; left:20%;">张艺兴</div>
+                <div class="word-tag w-medium" style="animation-delay:-2s; top:70%; left:70%;">莲莲</div>
+                <div class="word-tag w-medium" style="animation-delay:-3s; top:20%; left:80%;">闹天宫</div>
+                <div class="word-tag w-small" style="animation-delay:-4s; top:80%; left:20%;">抢票</div>
+                <div class="word-tag w-small" style="animation-delay:-5s; top:40%; left:10%;">大航海五巡</div>
+                <div class="word-tag w-medium" style="animation-delay:-1.5s; top:60%; left:40%;">宝宝</div>
+                <div class="word-tag w-small" style="animation-delay:-2.5s; top:10%; left:50%;">贝壳</div>
+                <div class="word-tag w-medium" style="animation-delay:-3.5s; top:85%; left:60%;">小羊蹄</div>
+                <div class="word-tag w-small" style="animation-delay:-0.5s; top:50%; left:85%;">Bob</div>
+            </div>
+            
+            <div class="swipe-indicator"></div>
+        </div>
+
+        <!-- Page 12: 黑胶唱片 -->
+        <div class="page" data-index="12">
+            <h2 class="fade-in-up">Would U Be Mine</h2>
+            <p class="fade-in-up delay-1" style="font-size:12px; opacity:0.7">点击播放 🎵</p>
+            
+            <div class="vinyl-box fade-in-up delay-2" onclick="toggleVinyl(this)">
+                <div class="vinyl-disk">
+                    <div class="vinyl-cover" style="background-image: url('img/WouldUBeMine.jpg');"></div>
+                </div>
+                <div class="vinyl-needle"></div>
+            </div>
+            
+            <p class="fade-in-up delay-3" style="margin-top:20px">Top 1 年度歌曲<br>我们拥抱在烟花盛开！</p>
+            <div class="swipe-indicator"></div>
+        </div>
+
+        <!-- Page 13: 结尾 -->
+        <div class="page" data-index="13">
+            <div class="icon-shell fade-in-up">💜</div>
+            <h2 class="fade-in-up delay-1">2026</h2>
+            <p class="fade-in-up delay-2">未来无限大，陪 <b>张艺兴</b> 一起走。</p>
+            
+            <div class="author-section fade-in-up delay-3">
+                <div class="author-title">PRODUCED BY <span style="color:var(--lay-gold)">Strelitzia</span></div>
+                <div class="social-icons">
+                    <div class="social-item">
+                        <span>Weibo</span>
+                        <div>Mr_Strelitzia</div>
+                    </div>
+                    <div class="social-item">
+                        <span>RED&Douyin</span>
+                        <div>Strelitzia（见过张艺兴四次版）</div>
+                    </div>
+                    <div class="social-item">
+                        <span>Github</span>
+                        <div>Strelitzia27</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;" class="fade-in-up delay-4">
+                <button onclick="location.reload()" style="padding: 10px 20px; background: transparent; border: 1px solid rgba(255,255,255,0.5); color: white; border-radius: 30px; cursor: pointer;">再看一次</button>
+                <button onclick="generateLongImage()" style="padding: 10px 20px; background: var(--lay-purple); border: none; color: white; border-radius: 30px; cursor: pointer; font-weight:bold;">生成长图保存</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 音乐控制对象 ---
+        const globalBgm = document.getElementById('global-bgm');
+        const vinylBgm = document.getElementById('vinyl-bgm');
+        const toggleBtn = document.getElementById('music-toggle');
+        let isGlobalPlaying = false; 
+
+        let hasInteracted = false;
+        function tryPlayGlobal() {
+            if (!hasInteracted && globalBgm.paused && vinylBgm.paused) {
+                globalBgm.play().then(() => {
+                    isGlobalPlaying = true; 
+                    toggleBtn.classList.add('rotating');
+                    toggleBtn.classList.remove('paused');
+                }).catch(e => console.log("Auto-play prevented"));
+                hasInteracted = true;
+            }
+        }
+        document.body.addEventListener('touchstart', tryPlayGlobal, {once: true});
+        document.body.addEventListener('click', tryPlayGlobal, {once: true});
+
+        toggleBtn.onclick = () => {
+            if (!vinylBgm.paused) {
+                vinylBgm.pause();
+                document.querySelector('.vinyl-box').classList.remove('playing');
+            }
+
+            if (globalBgm.paused) {
+                globalBgm.play();
+                toggleBtn.classList.add('rotating');
+                toggleBtn.classList.remove('paused');
+                isGlobalPlaying = true;
+            } else {
+                globalBgm.pause();
+                toggleBtn.classList.remove('rotating');
+                toggleBtn.classList.add('paused');
+                isGlobalPlaying = false;
+            }
+        };
+
+        function toggleVinyl(el) {
+            if (vinylBgm.paused) {
+                globalBgm.pause();
+                toggleBtn.classList.remove('rotating'); 
+                toggleBtn.classList.add('paused'); 
+                
+                vinylBgm.play();
+                el.classList.add('playing');
+            } else {
+                vinylBgm.pause();
+                el.classList.remove('playing');
+                
+                if (isGlobalPlaying) {
+                    globalBgm.play();
+                    toggleBtn.classList.add('rotating');
+                    toggleBtn.classList.remove('paused');
+                }
+            }
+        }
+
+        // --- 星空背景 ---
+        const starContainer = document.getElementById('star-container');
+        for(let i=0; i<60; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starContainer.appendChild(star);
+        }
+
+        // --- 翻页逻辑 ---
+        let startY = 0;
+        let currentIndex = 0;
+        const pages = document.querySelectorAll('.page');
+        const totalPages = pages.length;
+        let isAnimating = false;
+        let isCalendarTouch = false; 
+
+        document.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+            if (e.target.closest('.calendar-view')) {
+                isCalendarTouch = true;
+            } else {
+                isCalendarTouch = false;
+            }
+        }, {passive: false});
+
+        document.addEventListener('touchend', (e) => {
+            if(isAnimating) return;
+            if(isCalendarTouch) return; 
+
+            const diff = startY - e.changedTouches[0].clientY;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && currentIndex < totalPages - 1) switchPage(currentIndex + 1);
+                else if (diff < 0 && currentIndex > 0) switchPage(currentIndex - 1);
+            }
+        }, {passive: false});
+
+        document.addEventListener('wheel', (e) => {
+            if(isAnimating) return;
+            if (e.target.closest('.calendar-view')) return; 
+
+            if(e.deltaY > 0 && currentIndex < totalPages - 1) switchPage(currentIndex + 1);
+            else if(e.deltaY < 0 && currentIndex > 0) switchPage(currentIndex - 1);
+        });
+
+        function switchPage(toIndex) {
+            isAnimating = true;
+            const fromPage = pages[currentIndex];
+            const toPage = pages[toIndex];
+
+            fromPage.classList.remove('active');
+            fromPage.classList.add('prev');
+            
+            toPage.classList.remove('prev');
+            toPage.classList.add('active');
+
+            currentIndex = toIndex;
+            
+            setTimeout(() => {
+                isAnimating = false;
+                pages.forEach((p, idx) => {
+                    if(idx !== currentIndex) {
+                        p.classList.remove('active');
+                        p.classList.toggle('prev', idx < currentIndex);
+                    }
+                });
+            }, 800);
+        }
+
+        // --- 日历点击交互 ---
+        document.querySelectorAll('.highlight-day').forEach(day => {
+            day.addEventListener('click', function(e) {
+                e.stopPropagation(); // 防止触发翻页
+                const eventName = this.getAttribute('data-event');
+                const toast = document.getElementById('calendar-toast');
+                toast.innerText = eventName;
+                toast.classList.add('show');
+                
+                // 2秒后消失
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 2000);
+            });
+        });
+
+        // --- 生成长图保存逻辑 ---
+        function generateLongImage() {
+            alert("正在生成长图，请稍候...");
+            
+            const cloneContainer = document.createElement('div');
+            cloneContainer.style.width = '375px'; 
+            cloneContainer.style.background = '#120520';
+            cloneContainer.style.position = 'absolute';
+            cloneContainer.style.top = '-9999px';
+            cloneContainer.style.left = '0';
+            
+            pages.forEach(page => {
+                const clone = page.cloneNode(true);
+                clone.style.position = 'relative';
+                clone.style.transform = 'none';
+                clone.style.opacity = '1';
+                clone.style.visibility = 'visible';
+                clone.style.height = 'auto';
+                clone.style.minHeight = '600px';
+                clone.style.display = 'flex';
+                clone.style.borderBottom = '2px solid rgba(255,255,255,0.1)';
+                
+                const anims = clone.querySelectorAll('.fade-in-up, .flight-path, .pearl, .lyrics-wrapper, .word-tag');
+                anims.forEach(el => {
+                    el.style.opacity = '1';
+                    el.style.transform = 'none';
+                    el.style.animation = 'none';
+                    el.style.strokeDashoffset = '0';
+                });
+
+                // 确保词云分散开（因为移除了动画，手动设置位置以防重叠）
+                // 简单处理：保持 CSS 中的 top/left 定位即可
+
+                const highlightDays = clone.querySelectorAll('.highlight-day');
+                highlightDays.forEach(day => {
+                    day.style.boxShadow = '0 0 8px rgba(123, 0, 255, 0.8)';
+                });
+
+                const lid = clone.querySelector('.shell-top');
+                if(lid) lid.style.transform = 'rotateX(60deg) translateY(-40px)';
+                const pearl = clone.querySelector('.pearl');
+                if(pearl) {
+                    pearl.style.transform = 'translate(-50%, -60%) scale(1)';
+                    pearl.style.opacity = '1';
+                }
+
+                cloneContainer.appendChild(clone);
+            });
+
+            document.body.appendChild(cloneContainer);
+
+            html2canvas(cloneContainer, {
+                backgroundColor: '#120520',
+                scale: 2,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '2025_Lay_Summary.png';
+                link.href = canvas.toDataURL();
+                link.click();
+                document.body.removeChild(cloneContainer);
+            }).catch(err => {
+                console.error(err);
+                alert("生成失败，建议截屏保存");
+                document.body.removeChild(cloneContainer);
+            });
+        }
+    </script>
+</body>
+</html>
